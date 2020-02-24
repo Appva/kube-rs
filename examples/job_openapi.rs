@@ -1,3 +1,5 @@
+#![feature(proc_macro_hygiene)]
+
 #[macro_use] extern crate log;
 use futures::StreamExt;
 use k8s_openapi::{
@@ -13,6 +15,7 @@ use kube::{
     client::APIClient,
     config,
 };
+use auto_default::auto_default;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -22,20 +25,18 @@ async fn main() -> anyhow::Result<()> {
     let client = APIClient::new(config);
 
     // Create a Job
-    let my_job = Object {
+    let my_job = auto_default!(Object {
         types: TypeMeta {
             apiVersion: Some("batch/v1".to_string()),
             kind: Some("Job".to_string()),
         },
         metadata: ObjectMeta {
             name: "empty-job".to_string(),
-            ..Default::default()
         },
         spec: JobSpec {
             template: PodTemplateSpec {
                 metadata: Some(OpenApiObjectMeta {
                     name: Some("empty-job-pod".to_string()),
-                    ..Default::default()
                 }),
                 spec: Some(PodSpec {
                     containers: vec![Container {
@@ -44,13 +45,13 @@ async fn main() -> anyhow::Result<()> {
                         ..Default::default()
                     }],
                     restart_policy: Some("Never".to_string()),
-                    ..Default::default()
                 }),
             },
-            ..Default::default()
         },
         status: None,
-    };
+        // Opt out of auto_default
+        ..__
+    });
 
     let jobs = Api::v1Job(client).within("default");
     let pp = PostParams::default();
